@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Working SBTI - 打工人格测试</title>
+<style>
+  :root { --bg: #f4f4f4; --card: #ffffff; --text: #333; --muted:#666; --line:#eee; }
+    body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+
+    display: flex;
+    justify-content: center;   /* 横向居中 */
+    align-items: center;       /* ✅ 纵向居中 */
+
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    }
+    
+* SBTI 风格抽象背景 */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+
+    background:
+      radial-gradient(600px 600px at 20% 20%, rgba(0, 90, 150, 0.08), transparent 60%),
+      radial-gradient(500px 500px at 80% 30%, rgba(0, 160, 180, 0.08), transparent 60%),
+      radial-gradient(400px 400px at 50% 80%, rgba(120, 140, 200, 0.06), transparent 60%),
+      #f4f4f4;
+  }
+
+
+  #app { width: 100%; max-width: 450px; }
+
+  .page {
+    background: var(--card);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    text-align: center;
+  }
+  .hidden { display: none; }
+
+  h1 { font-size: 1.5rem; margin: 0 0 10px; }
+  h2 { font-size: 1.15rem; margin: 10px 0 8px; }
+  p { margin: 8px 0; color: var(--muted); }
+
+  .btn {
+    display: block; width: 100%;
+    padding: 15px; margin: 10px 0;
+    border: 1px solid #ddd; background: #fff;
+    cursor: pointer; border-radius: 10px;
+    transition: 0.2s; font-size: 1rem;
+  }
+  
+/* 底部导航区 */
+  .nav-bar {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  text-align: left;
+  } 
+
+/* 返回上一题：次级操作 */
+  .back-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 4px;
+  font-size: 0.85rem;
+  color: #888;
+  cursor: pointer;
+  }
+
+  .back-btn:hover {
+  color: #333;
+  text-decoration: underline;
+  }
+
+  
+  .brand-tag {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8aa3b8;
+    margin-bottom: 10px;
+  }
+
+
+  #res-img {
+    width: 100%;
+    border-radius: 15px;
+    margin-bottom: 16px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  }
+
+  /* 结果页扩展区块 */
+  .section { margin-top: 20px; text-align: left; }
+  .section h3 { font-size: 1rem; margin: 0 0 10px; }
+  .section p { font-size: 0.95rem; line-height: 1.65; color: #555; }
+
+  .pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f6f6f6;
+    border: 1px solid var(--line);
+    color: #444;
+    font-size: 0.8rem;
+    margin-right: 6px;
+    margin-bottom: 6px;
+  }
+
+  .copilot-item {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fafafa;
+  }
+  .copilot-item strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+    color: #222;
+  }
+  .copilot-item span { color:#555; line-height:1.5; display:block; }
+
+  .small { font-size: 0.8rem; color: #888; margin-top: 6px; }
+  .divider { height:1px; background: var(--line); margin: 14px 0; border:0; }
+</style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- 开始页 -->
+   
+  <div class="brand-tag">
+    Powered by Ecolab · AI Changemaker
+  </div>
+
+  <div id="start-page" class="page">
+    <h1>Working SBTI</h1>
+    <p>你是哪种职场人格？</p>
+    <button class="btn" onclick="startTest()">开始测试</button>
+    <p class="small">娱乐向测试，仅供自嘲与分享。</p>
+  </div>
+
+  <!-- 测试页 -->
+  <div id="quiz-page" class="page hidden">
+    <div id="progress" style="font-size: 0.8rem; color: #888;"></div>
+    <h2 id="question">Loading...</h2>
+    <div id="options"></div>
+    
+    <div class="nav-bar">
+      <button class="back-btn" onclick="goBack()">← 返回上一题</button>
+    </div>
+
+  </div>
+
+  <!-- 结果页 -->
+  <div id="result-page" class="page hidden">
+    <img id="res-img" src="" alt="Result" />
+    <h2 id="res-title"></h2>
+    <p id="res-desc"></p>
+
+    <!-- 维度简报（可选展示） -->
+    <div class="section">
+      <h3>维度简报</h3>
+      <div id="dim-pills"></div>
+      <p class="small">每个维度满分 8，≥6 视为“高”。</p>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- 人格分析 -->
+    <div class="section">
+      <h3>人格分析</h3>
+      <p id="analysis-text"></p>
+    </div>
+
+    <!-- Copilot 推荐 -->
+    <div class="section">
+      <h3>推荐 Copilot 使用场景</h3>
+      <div id="copilot-list"></div>
+      <p class="small">建议基于 Microsoft 365 Copilot 的常见使用场景撰写，用来“减负”。</p>
+    </div>
+
+    <button class="btn" onclick="location.reload()">重新测试</button>
+  </div>
+
+</div>
+
+<script>
+/* =========================
+   题目配置
+========================= */
+const questions = [
+  // R 响应驱动（1–4）
+  {
+    q: "工作时间内，你在处理自己的任务时，Teams/Outlook 弹出一条来自 非直线老板 的消息，你会？",
+    dim: "R",
+    options: ["立刻回复，先了解情况再说", "看重要程度，有空再回", "等手头事情告一段落"]
+  },
+  {
+    q: "会议上，有人突然点名问你一个不是很准备好的问题，你通常？",
+    dim: "R",
+    options: ["先回应，占住话语权再补充", "简单说明，事后再跟进", "假装网络不太好，稍后文字回复"]
+  },
+  {
+    q: "你对 Teams / Outlook 通知的常态设置是？",
+    dim: "R",
+    options: ["弹窗提示，随时响应", "重要人/重要群保留，其余静音", "大多数静音，定时集中处理"]
+  },
+  {
+    q: "非工作时间（比如深夜或清晨）收到消息时，你一般？",
+    dim: "R",
+    options: ["看到就回，避免被认为不积极", "看情况回复", "明确边界，工作时间再回复"]
+  },
+
+  // M 会议依赖（5–8）
+  {
+    q: "面对一个 定义 不清楚的问题，你更可能的做法是？",
+    dim: "M",
+    options: ["拉一个 确认会议", "先邮件/消息把问题写清楚", "先自己想清楚再沟通"]
+  },
+  {
+    q: "如果某一周你的日历几乎没有会，你会觉得？",
+    dim: "M",
+    options: ["有点不安，好像不太被需要", "舒服，终于能专心干活", "很正常，会本来就该少"]
+  },
+  {
+    q: "在 重复发生的系列会议 中，你最常见的状态是？",
+    dim: "M",
+    options: ["经常发言，主动 寻求共识", "大多数时候只听，被点到才说", "当背景音，一边做别的事"]
+  },
+  {
+    q: "当讨论陷入反复但没有结论时，你通常？",
+    dim: "M",
+    options: ["提议再拉一个 跟进会议", "抛一个 总结 邮件收敛结论", "接受模糊状态，继续推进自己部分"]
+  },
+
+  // D 截止线模式（9–12）
+  {
+    q: "拿到一个有明确交付时间的任务，你通常？",
+    dim: "D",
+    options: ["尽早开始，留足够时间", "按计划推进，不早不晚", "等 deadline 压力出现再集中输出"]
+  },
+  {
+    q: "你和 deadline 的关系更像？",
+    dim: "D",
+    options: ["永远提前完成，强调可预期性", "及时交付就是成功", "没有 deadline 就没有行动力"]
+  },
+  {
+    q: "一个 1–2 个月的项目周期中，你最真实的节奏是？",
+    dim: "D",
+    options: ["前期就持续推进", "中段开始明显发力", "最后阶段高密度输出"]
+  },
+  {
+    q: "关于赶 deadline 或 上线日期 ，你的经历是？",
+    dim: "D",
+    options: ["几乎没有，提前规划好", "偶尔发生，可以接受", "是常态，早已习惯"]
+  },
+
+  // B 边界感（13–16）
+  {
+    q: "其他部门临时把一项模糊的任务甩给你时，你通常？",
+    dim: "B",
+    options: ["先接住，再慢慢澄清", "确认 范围 后再决定", "直接问清细节"]
+  },
+  {
+    q: "被默认当成某个事情的负责人，但你并未明确接受，你会？",
+    dim: "B",
+    options: ["算了，我来吧", "澄清 角色 和 分工 ", "做一部分，但心里保留"]
+  },
+  {
+    q: "项目出现问题需要 负责 时，你更可能？",
+    dim: "B",
+    options: ["主动承担，避免事情扩大", "基于事实说明各自责任", "尽量避免被卷入"]
+  },
+  {
+    q: "在没有明确 负责人 的 行动项 上，你通常？",
+    dim: "B",
+    options: ["先认领，保证推进", "确认后再行动", "保持沉默"]
+  },
+
+  // F 碎片化（17–20）
+  {
+    q: "你在外企里的日常工作状态更像？",
+    dim: "F",
+    options: ["多线程并行，各种内容随意切换", "按 模块 专注做事", "不断被打断但已适应"]
+  },
+  {
+    q: "当你 同时处理 多个 任务 时，你会？",
+    dim: "F",
+    options: ["明确优先级逐一处理", "谁跟得急先处理谁", "来回切换，动态处理"]
+  },
+  {
+    q: "会议、消息、邮件同时来的时候，你通常？",
+    dim: "F",
+    options: ["立刻切换响应", "完成当前事项再处理", "情绪烦躁但还是配合"]
+  },
+  {
+    q: "你的 Outlook/浏览器/文档状态通常是？",
+    dim: "F",
+    options: ["干净克制，重视秩序", "常年开着十几个窗口", "混乱但我知道东西在哪"]
+  },
+
+  // S 系统角色（21–24）
+  {
+    q: "你如何看待 KPI 在外企中的角色？",
+    dim: "S",
+    options: ["是 达成共识 和汇报的核心语言", "只是参考，执行更重要", "偏形式主义"]
+  },
+  {
+    q: "写 周报 时，你通常？",
+    dim: "S",
+    options: ["认真总结 进度 和 影响", "在上次基础上更新状态", "被 push 才补"]
+  },
+  {
+    q: "你更适应哪种外企工作模式？",
+    dim: "S",
+    options: ["固定坐班，强调协作氛围", "远程优先，结果导向", " 灵活办公最合理"]
+  },
+  {
+    q: "远程办公 时，你最真实的状态是？",
+    dim: "S",
+    options: ["基本保持 办公室 节奏", "效率明显更高", "自律性下降"]
+  }
+];
+
+/* =========================
+   人格与图片映射
+   (确保图片路径正确：例如 image/DING.jpg)
+========================= */
+const personalities = [
+  { code: "DING", name: "叮叮人", desc: "消息提示音是你的精神饲料。", img: "image/DING.jpg" },
+  { code: "MTNG", name: "会海生物", desc: "不在会议中，就在去会议的路上。", img: "image/MTNG.jpg" },
+  { code: "PPTG", name: "PPT鬼", desc: "文字是你的外衣，排版是你的真理。", img: "image/PPTG.jpg" },
+  { code: "DDLR", name: "死线飞人", desc: "最后时刻的爆发力之王。", img: "image/DDLR.jpg" },
+  { code: "BKRS", name: "背锅侠", desc: "你的脊背支撑着整个团队。", img: "image/BKRS.jpg" },
+  { code: "OKOK", name: "好的人", desc: "万物皆可OK，一片平和。", img: "image/OKOK.jpg" },
+  { code: "JIRA", name: "工单搬运工", desc: "在工单的世界里，你就是永动机。", img: "image/JIRA.jpg" },
+  { code: "ONCL", name: "守夜人", desc: "太阳落山，才是你的黄金时间。", img: "image/ONCL.jpg" },
+  { code: "KPIK", name: "指标狂", desc: "眼中只有数据，数据即是信仰。", img: "image/KPIK.jpg" },
+  { code: "RPTZ", name: "周报匠", desc: "周报是你的灵魂艺术品。", img: "image/RPTZ.jpg" },
+  { code: "SHFT", name: "切换狂", desc: "在不同任务间反复横跳。", img: "image/SHFT.jpg" },
+  { code: "WFHF", name: "在家打工幻影", desc: "由于存在感极低，经常被遗忘。", img: "image/WFHF.jpg" }
+];
+
+/* =========================
+   12 种人格：analysis + Copilot 推荐（一次性写完）
+========================= */
+const personalityDetails = {
+  DING: {
+    analysis: "你对消息高度敏感，响应速度极快。你把“已读秒回”当作安全感来源，导致注意力持续被打断：人还没开始干活，脑子已经被通知切成了碎片。你不一定最忙，但你一定最“在线”。",
+    copilot: [
+      { title: "Copilot in Teams / Outlook：消息摘要", reason: "把一堆信息压缩成 3 行重点，让你不用每条都点开，降低“秒回焦虑”的触发频率。" },
+      { title: "Copilot：生成回复草稿", reason: "对常见追问自动拟好礼貌回复，你只需要确认即可，减少“反射性敲字”的体力消耗。" },
+      { title: "Copilot in To Do / Planner：把消息变任务", reason: "把零散消息自动提取成待办并设定截止时间，让你从“回复型工作”回到“推进型工作”。" }
+    ]
+  },
+
+  MTNG: {
+    analysis: "你的人生是一个连环会议：对齐、同步、复盘、再对齐。你擅长在会议里“让事情看起来在推进”，但真正的深度产出常被切走。你不是没能力，你是被日程表按住了脖子。",
+    copilot: [
+      { title: "Copilot in Teams：会议纪要与行动项", reason: "自动生成纪要、结论、负责人和下一步，减少你手动记笔记的痛苦，也让会议真的能落地。" },
+      { title: "Copilot：会议前快速准备", reason: "把相关邮件/文档摘要成要点，开会前 2 分钟也能看起来像准备了 2 小时。" },
+      { title: "Copilot：会后追踪与提醒", reason: "自动整理行动项并提醒相关人，减少你在群里反复“@一下”的劳动。"}
+    ]
+  },
+
+  PPTG: {
+    analysis: "你相信世界可以被排版拯救：一切不确定，都用 16:9 的秩序安放。你擅长把复杂问题变成可展示的结构，但也容易在“美化与对齐”里无限打磨，最后用格式替代内容。",
+    copilot: [
+      { title: "Copilot in PowerPoint：自动生成大纲与页结构", reason: "把 Word/要点直接转成讲得通的页结构，减少你从空白页开始的精神消耗。" },
+      { title: "Copilot：一键生成演示稿讲稿", reason: "自动补齐口播要点，让你不再靠临场发挥和强行圆场撑全场。" },
+      { title: "Copilot：统一风格与改写表达", reason: "帮你把“看起来很努力”的文字变成“真的能读懂”的文字，少点花活，多点杀伤力。"}
+    ]
+  },
+
+  DDLR: {
+    analysis: "你靠死线进入战斗形态：平时像待机，DDL 前像开挂。你不是不会做，是需要压力把你从宇宙漂浮状态拉回地面。短期爆发很强，但长期会透支，且容易把风险集中到最后一刻。",
+    copilot: [
+      { title: "Copilot：把需求拆成可执行步骤", reason: "把模糊任务拆成清单与优先级，避免你在最后一晚边做边猜边崩溃。" },
+      { title: "Copilot in Excel：进度与风险可视化", reason: "用简单表格快速生成进度/风险视图，让你提前看到“要炸”的地方。" },
+      { title: "Copilot：快速生成交付物初稿", reason: "先产出 60 分版本再迭代，比你在死线前追求完美更容易活下来。"}
+    ]
+  },
+
+  BKRS: {
+    analysis: "你是团队的缓冲层：锅来了你先接，情绪来了你先扛。你可靠、能兜底、能救火，但这也让你很容易变成“永久责任人”。你不是不想拒绝，是你太习惯先把事儿顶住。",
+    copilot: [
+      { title: "Copilot：会议/邮件责任归因摘要", reason: "自动标出谁决定了什么、谁需要行动，帮你把责任写清楚，减少“默认你负责”的概率。" },
+      { title: "Copilot in Word：写对齐文档/复盘", reason: "把复盘写得清楚可追溯，避免“锅”在口头沟通里变形最后砸你。" },
+      { title: "Copilot：生成边界话术", reason: "帮你把拒绝说得体面：不是不帮，是先定范围、先定优先级。"}
+    ]
+  },
+
+  OKOK: {
+    analysis: "你是组织里的“万能确认键”：好的、收到、没问题。你让沟通顺滑、气氛稳定，但也容易把模糊需求直接吞下去，最后在深夜为一堆“当时我说了OK”的承诺还债。",
+    copilot: [
+      { title: "Copilot：把需求转成澄清问题", reason: "自动生成澄清清单（目标/范围/截止/验收），让你在说 OK 前先把坑填平。" },
+      { title: "Copilot in Outlook：邮件回复更有边界", reason: "帮你写“可以做，但需要 X 前置条件/需要 Y 资源”的回复，减少无条件接单。" },
+      { title: "Copilot：总结任务与预期", reason: "把你答应的事总结成可交付列表，既保护你也保护团队。"}
+    ]
+  },
+
+  JIRA: {
+    analysis: "你在流程里游刃有余：任务流转、状态更新、同步节点——你像一个系统中间件。你能让协作更顺，但也容易陷入“看板动了就等于进展了”的错觉：状态很美，价值未必交付。",
+    copilot: [
+      { title: "Copilot：从讨论生成任务清单", reason: "把聊天/会议自动提炼成行动项，减少你靠手工搬运工单的时间。" },
+      { title: "Copilot：周进度自动总结", reason: "自动把完成项、阻塞项、下一步整理出来，让你少做“状态整理”，多做“推进”。" },
+      { title: "Copilot in Loop：协作页自动更新", reason: "把分散信息集中到一个协作页，避免你在多个系统之间来回同步。"}
+    ]
+  },
+
+  ONCL: {
+    analysis: "你是守夜人：系统一响你就上线，别人睡了你还在看日志。你反应快、定位强、能稳住局面，但长期“随时待命”会把生活挤出边界，最终只剩一个永远亮着的通知灯。",
+    copilot: [
+      { title: "Copilot：告警/日志摘要", reason: "把大量告警归并成根因线索，减少你在海量信息里硬筛的时间。" },
+      { title: "Copilot in Teams：事故复盘自动初稿", reason: "自动生成时间线、影响范围、处置步骤，复盘更快、更可复用。" },
+      { title: "Copilot：值班交接清单", reason: "自动整理未完成事项与风险点，让你下线时真的能下线。"}
+    ]
+  },
+
+  KPIK: {
+    analysis: "你信仰指标：能量化的才算努力。你擅长把目标变成数字、把数字变成压力、把压力变成产出。优点是清晰、可控，但风险是：过度追逐指标会让你忽略长期价值和真实用户体验。",
+    copilot: [
+      { title: "Copilot in Excel：指标看板与趋势解释", reason: "自动生成图表并解释异常波动，帮你把“数据焦虑”变成“决策依据”。" },
+      { title: "Copilot：撰写 OKR/指标复盘", reason: "自动结构化复盘（结果/原因/行动），让你不只报数，还能讲清楚。"},
+      { title: "Copilot：把策略拆成可执行实验", reason: "把目标拆成假设与实验，减少“为了数字而数字”的空转。"}
+    ]
+  },
+
+  RPTZ: {
+    analysis: "你是周报匠：你能把一周写成史诗，把一点进展写成战报。你擅长复盘与表达，能让工作被看见，但也容易把“记录”当成“完成”：周报越来越完美，问题依旧在那里。",
+    copilot: [
+      { title: "Copilot in Word：周报一键生成", reason: "把本周会议/邮件/任务自动汇总成周报骨架，你只需要补充真正的思考。"},
+      { title: "Copilot：亮点与风险提炼", reason: "自动把冗长内容提炼成“亮点/问题/下一步”，让周报更像复盘而不是流水账。"},
+      { title: "Copilot：生成对齐版本（给老板/给团队）", reason: "同一份内容自动改写成不同受众版本，减少你重复写三遍的劳作。"}
+    ]
+  },
+
+  SHFT: {
+    analysis: "你是切换狂：在任务之间反复横跳，响应速度像瞬移。你很能扛突发，但也因此难进入深度状态。你不是不专注，是被环境训练成了“永远可打断”。长期下去，精力会被切成粉。",
+    copilot: [
+      { title: "Copilot in Teams / Outlook：消息摘要", reason: "把信息压缩成要点，减少你每次切换都要重新读一遍上下文。"},
+      { title: "Copilot in Teams：会议纪要与行动项", reason: "自动抓结论与 next steps，让你在多线程环境里也能跟上主线。"},
+      { title: "Copilot：任务整理与优先级排序", reason: "把碎片任务重新排序并生成清单，让你少横跳，多推进。"}
+    ]
+  },
+
+  WFHF: {
+    analysis: "你是“在家打工幻影”：在线存在感很低，但在关键时刻又能突然出现。你不一定不干活，只是把工作隐身执行。优势是灵活与自洽，风险是：协作透明度不足，容易被误解为“消失”。",
+    copilot: [
+      { title: "Copilot：每日简报/工作轨迹总结", reason: "自动生成你当天做了什么，帮你在远程协作中提升可见性。"},
+      { title: "Copilot in Teams：异步更新文案", reason: "把进度写得清楚可追踪，减少‘你人呢’的追问与误解。"},
+      { title: "Copilot in PowerPoint/Word：快速输出可分享成果", reason: "把你的隐形产出变成可展示的交付物，存在感不是喊出来的，是交付出来的。"}
+    ]
+  }
+};
+
+/* =========================
+   测试状态
+========================= */
+let current = 0;
+let scores = { R:0, M:0, D:0, B:0, F:0, S:0 };
+let answers = []; // 记录每题选项索引 0/1/2（A/B/C）
+
+function startTest() {
+  document.getElementById('start-page').classList.add('hidden');
+  document.getElementById('quiz-page').classList.remove('hidden');
+  current = 0;
+  scores = { R:0, M:0, D:0, B:0, F:0, S:0 };
+  answers = [];
+  showQuestion();
+}
+
+function showQuestion() {
+  if (current >= questions.length) return showResult();
+  const q = questions[current];
+
+  document.getElementById('progress').innerText = `${current + 1} / ${questions.length}`;
+  document.getElementById('question').innerText = q.q;
+
+  const optDiv = document.getElementById('options');
+  optDiv.innerHTML = '';
+
+  q.options.forEach((o, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.innerText = o;
+    btn.onclick = () => {
+      // A=2, B=1, C=0
+      scores[q.dim] += (2 - i);
+      answers[current] = i;
+      current++;
+      showQuestion();
+    };
+    optDiv.appendChild(btn);
+  });
+}
+
+function goBack() {
+  if (current === 0) return;
+
+  current--;
+
+  const prevAnswer = answers[current];
+  if (prevAnswer !== undefined) {
+    const dim = questions[current].dim;
+    scores[dim] -= (2 - prevAnswer);
+  }
+
+  showQuestion();
+}
+
+
+/* =========================
+   人格判定（非随机版）
+   使用：维度高（>=6）+ 若干关键题触发
+   优先级：SHFT > DING > ONCL > MTNG > DDLR > BKRS > OKOK > JIRA > KPIK > RPTZ > PPTG > WFHF
+========================= */
+function determinePersonalityCode() {
+  const hi = {
+    R: scores.R >= 6,
+    M: scores.M >= 6,
+    D: scores.D >= 6,
+    B: scores.B >= 6,
+    F: scores.F >= 6,
+    S: scores.S >= 6
+  };
+
+  // 关键题索引（0-based）
+  const q7  = answers[6];  // 会议中你通常？
+  const q21 = answers[20]; // 你觉得KPI/OKR？
+  const q22 = answers[21]; // 写周报时你会？
+  const q23 = answers[22]; // 更喜欢哪种工作模式？
+  const q24 = answers[23]; // 居家办公时你会？
+
+  // 优先级匹配
+  if (scores.F >= 7) return "SHFT";                 // 切换极高
+  if (hi.R && hi.F) return "DING";                  // 秒回 + 碎片化
+  if (hi.S && hi.R) return "ONCL";                  // 系统角色 + 响应高（像待命/救火）
+  if (hi.M && scores.M >= 7) return "MTNG";         // 会议极高
+  if (hi.D && scores.D >= 7) return "DDLR";         // 死线极高
+
+  // B：背锅 vs 好的人（看 B 维度题选项倾向）
+  const bPicks = answers.slice(12, 16); // 第13-16题（0-based 12~15）
+  const bSelectBCount = bPicks.filter(x => x === 1).length; // 选了B的次数
+  const bSelectACount = bPicks.filter(x => x === 0).length; // 选了A的次数
+  if (hi.B && bSelectACount >= 2) return "BKRS";
+  if ((scores.B >= 5) && bSelectBCount >= 2) return "OKOK";
+
+  // KPIK / RPTZ 强触发（更稳定）
+  if (q21 === 0) return "KPIK";                     // Q21 选A：KPI核心驱动
+  if (q22 === 0) return "RPTZ";                     // Q22 选A：认真周报
+
+  // PPTG：会议偏高 + 会议中积极发言（Q7选A）更像“控场+呈现”
+  if (scores.M >= 6 && q7 === 0) return "PPTG";
+
+  // WFHF：偏远程/混合 + 居家易摸鱼（存在感薄）
+  if ((q23 === 1 || q23 === 2) && q24 === 2 && !hi.R) return "WFHF";
+
+  // JIRA：系统角色中等偏高，但不是 KPI/周报强触发
+  if (scores.S >= 5 && !hi.M && !hi.D && !hi.B && !hi.R && !hi.F) return "JIRA";
+
+  // 最后兜底：按最高维度映射
+  const bestDim = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+  const fallbackMap = { R:"DING", M:"MTNG", D:"DDLR", B:"BKRS", F:"SHFT", S:"KPIK" };
+  return fallbackMap[bestDim] || "OKOK";
+}
+
+function showResult() {
+  const code = determinePersonalityCode();
+  const p = personalities.find(x => x.code === code) || personalities[0];
+  const detail = personalityDetails[p.code] || { analysis: "暂无详细分析。", copilot: [] };
+
+  // 切页
+  document.getElementById('quiz-page').classList.add('hidden');
+  document.getElementById('result-page').classList.remove('hidden');
+
+  // 基础信息
+  document.getElementById('res-img').src = p.img;
+  document.getElementById('res-title').innerText = `${p.code} | ${p.name}`;
+  document.getElementById('res-desc').innerText = p.desc;
+
+  // 维度简报 pills
+  const dimNames = {
+    R:"响应驱动", M:"会议依赖", D:"截止线模式", B:"边界感", F:"碎片化", S:"系统角色"
+  };
+  const dimPills = document.getElementById('dim-pills');
+  dimPills.innerHTML = "";
+  Object.keys(scores).forEach(k => {
+    const pill = document.createElement("span");
+    const high = scores[k] >= 6;
+    pill.className = "pill";
+    pill.innerText = `${dimNames[k]}：${scores[k]}/8${high ? "（高）" : ""}`;
+    dimPills.appendChild(pill);
+  });
+
+  // 人格分析
+  document.getElementById('analysis-text').innerText = detail.analysis;
+
+  // Copilot 推荐列表
+  const list = document.getElementById('copilot-list');
+  list.innerHTML = "";
+  (detail.copilot || []).forEach(item => {
+    const div = document.createElement("div");
+    div.className = "copilot-item";
+    div.innerHTML = `
+      <strong>${item.title}</strong>
+      <span>${item.reason}</span>
+    `;
+    list.appendChild(div);
+  });
+}
+</script>
+</body>
+</html>
